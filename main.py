@@ -136,8 +136,7 @@ def handle_output_format(call):
     global output_format
     output_format = call.data
 
-    # Возвращаем в главное меню
-    send_welcome(call.message)
+    bot.send_message(call.message.chat.id, "Формат вывода изменен.")
 
 @bot.message_handler(commands=['online'])
 def handle_online(message):
