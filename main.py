@@ -65,15 +65,14 @@ def send_message(chat_id, text, reply_markup=None):
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
+    chat_member = bot.get_chat_member('@FightSearch', message.from_user.id)
+    if chat_member.status not in ['member', 'administrator', 'creator']:
+        markup = types.InlineKeyboardMarkup()
+        button_1 = types.InlineKeyboardButton("📢 Подписаться", url="https://t.me/FightSearch")
+        markup.add(button_1)
+        bot.send_message(message.chat.id, "⚠️ Пожалуйста подпишитесь на канал для использования бота.", reply_markup=markup)
+        return
     if check_user_in_data(message.from_user.id):
-        chat_member = bot.get_chat_member('@FightSearch', message.from_user.id)
-        if chat_member.status not in ['member', 'administrator', 'creator']:
-            markup = types.InlineKeyboardMarkup()
-            button_1 = types.InlineKeyboardButton("📢 Подписаться", url="https://t.me/FightSearch")
-            markup.add(button_1)
-            bot.send_message(message.chat.id, "⚠️ Пожалуйста подпишитесь на канал для использования бота.", reply_markup=markup)
-            return
-
         if message.chat.id not in users_data:
             users_data[message.chat.id] = {
                 'username': message.from_user.username,
