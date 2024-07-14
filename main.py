@@ -103,7 +103,7 @@ def confirm_pay(call):
         bot.send_message(call.message.chat.id, "Оплата успешна! Можете использовать бота.")
         write_user_data(user_id)
     else:
-        bot.send_message(call.messsage.chat.id, "❌")
+        bot.send_message(call.message.chat.id, "❌")
         bot.send_message(call.message.chat.id, "Оплата не прошла, попробуйте еще раз!")
 
 
