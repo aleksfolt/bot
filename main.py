@@ -1,3 +1,5 @@
+import time
+
 import requests
 import telebot
 from telebot import types
@@ -6,47 +8,104 @@ from phonenumbers import carrier, geocoder
 import socket
 import json
 import os
+from crypto_pay_sync import cryptopay
 
-# Замените этот токен на свой токен бота
+crypto_client = cryptopay.Crypto("235743:AA84QeqOlCzUf6mpxbYwiuHtFOfOkN716j2", testnet=False)
 BOT_TOKEN = '7149009411:AAEUtU2eq1oiVl4DBEbUjEr5RFQOg0oB6KE'
-
-# Замените этот API-ключ на свой ключ от opencagedata.com
 API_KEY = 'bdf74038f14a42e8a2a38ec23a05842e'
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
-# Глобальная переменная для хранения формата вывода
-output_format = 'usual'  # По умолчанию обычный текст
+output_format = 'usual'
 
-# Глобальная переменная для хранения айди пользователей
 users_data = {}
 
-# Глобальная переменная для группы, в которую будут писаться логи
-group_id = -1002166461586 # Замените на ID вашей группы
+group_id = -1002166461586
 
-# Главное меню
+
+def check_subscription(chat_id, user_id):
+    try:
+        chat_member = bot.get_chat_member(chat_id, user_id)
+        return chat_member.status in ['member', 'administrator', 'creator']
+    except Exception as e:
+        print(f"Error checking subscription: {e}")
+        return False
+
+
+def read_users_data():
+    try:
+        with open('users_data.json', 'r') as file:
+            return json.load(file)
+    except FileNotFoundError:
+        return {}
+
+
+def write_user_data(user_id):
+    users = read_users_data()
+    if str(user_id) not in users:
+        users[str(user_id)] = True
+        with open('users_data.json', 'w') as file:
+            json.dump(users, file)
+
+
+def check_user_in_data(user_id):
+    users = read_users_data()
+    return str(user_id) in users
+
+
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    # Добавляем пользователя в базу данных
-    if message.chat.id not in users_data:
-        users_data[message.chat.id] = {
-            'username': message.from_user.username,
-            'first_name': message.from_user.first_name,
-            'last_name': message.from_user.last_name
-        }
-        # Логируем новое подключение
-        bot.send_message(group_id, f"Новый пользователь в боте: {message.from_user.username} ({message.from_user.first_name} {message.from_user.last_name})")
+    if check_user_in_data(message.from_user.id):
+        chat_member = bot.get_chat_member('@FightSearch', message.from_user.id)
+        if chat_member.status not in ['member', 'administrator', 'creator']:
+            markup = types.InlineKeyboardMarkup()
+            button_1 = types.InlineKeyboardButton("📢 Подписаться", url="https://t.me/FightSearch")
+            markup.add(button_1)
+            bot.send_message(message.chat.id, "⚠️ Пожалуйста подпишитесь на канал для использования бота.", reply_markup=markup)
+            return
 
-    markup = types.InlineKeyboardMarkup()
-    item_ip = types.InlineKeyboardButton("💻 Айпи", callback_data='ip')
-    item_phone = types.InlineKeyboardButton("📱 Номер", callback_data='phone')
-    item_settings = types.InlineKeyboardButton("⚙️ Настройки", callback_data='settings')
-    markup.add(item_ip, item_phone, item_settings)
+        if message.chat.id not in users_data:
+            users_data[message.chat.id] = {
+                'username': message.from_user.username,
+                'first_name': message.from_user.first_name,
+                'last_name': message.from_user.last_name
+            }
+            # bot.send_message(group_id, f"Новый пользователь в боте: {message.from_user.username} ({message.from_user.first_name} {message.from_user.last_name})")
 
-    bot.send_message(message.chat.id, 
-                    f"👋 Здравствуй! Ты в боте от @fightlor. \n\n"
-                    f"> Это бот для пробития осинт информации", 
-                    reply_markup=markup)
+        markup = types.InlineKeyboardMarkup()
+        item_ip = types.InlineKeyboardButton("💻 Айпи", callback_data='ip')
+        item_phone = types.InlineKeyboardButton("📱 Номер", callback_data='phone')
+        item_settings = types.InlineKeyboardButton("⚙️ Настройки", callback_data='settings')
+        markup.add(item_ip, item_phone, item_settings)
+
+        bot.send_message(message.chat.id,
+                         f"👋 Здравствуй! Ты в боте от @fightlor. \n\n"
+                         f"> Это бот для пробития осинт информации",
+                         reply_markup=markup)
+    else:
+        invoice = crypto_client.createInvoice("USDT", "1", params={"description": "Покупка использования бота."})
+        result = invoice.get('result', {})
+        markup = types.InlineKeyboardMarkup(row_width=1)
+        button_1 = types.InlineKeyboardButton("💰Купить", url=result['pay_url'])
+        button_2 = types.InlineKeyboardButton("💵 Я оплатил", callback_data=f"confirm_{result['invoice_id']}")
+        markup.add(button_1, button_2)
+        bot.send_message(message.chat.id, "⚠️ Приобретите пожалуйста подписку чтобы использовать бота.", reply_markup=markup)
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("confirm_"))
+def confirm_pay(call):
+    invoice_id = call.data.split("_")[1]
+    invoices = crypto_client.get_invoices(invoice_ids=[invoice_id]).get('result', {}).get('items', [])
+    if invoices and invoices[0]['status'] == 'paid':
+        user_id = call.from_user.id
+        bot.send_message(call.message.chat.id, "🎉")
+        time.sleep(1)
+        bot.send_message(call.message.chat.id, "Оплата успешна! Можете использовать бота.")
+        write_user_data(user_id)
+    else:
+        bot.send_message(call.messsage.chat.id, "❌")
+        bot.send_message(call.message.chat.id, "Оплата не прошла, попробуйте еще раз!")
+
 
 # Меню настроек
 @bot.callback_query_handler(func=lambda call: call.data == 'settings')
@@ -57,11 +116,13 @@ def handle_settings(call):
     item_usual = types.InlineKeyboardButton("Обычный", callback_data='usual')
     markup.add(item_json, item_txt, item_usual)
 
-    bot.edit_message_text(chat_id=call.message.chat.id, 
+    bot.edit_message_text(chat_id=call.message.chat.id,
                           message_id=call.message.message_id,
-                          text="Выберите формат вывода:", 
+                          text="Выберите формат вывода:",
                           reply_markup=markup)
-                          # Обработчик настроек
+    # Обработчик настроек
+
+
 @bot.callback_query_handler(func=lambda call: call.data in ['json', 'txt', 'usual'])
 def handle_output_format(call):
     global output_format
@@ -70,34 +131,48 @@ def handle_output_format(call):
     # Возвращаем в главное меню
     send_welcome(call.message)
 
+
 @bot.message_handler(commands=['online'])
 def handle_online(message):
     online_count = len(users_data)
     bot.send_message(message.chat.id, f"Сейчас онлайн {online_count} человек.")
 
+
 @bot.callback_query_handler(func=lambda call: True)
 def handle_callback_query(call):
     if call.data == 'ip':
-        bot.edit_message_text(chat_id=call.message.chat.id, 
+        bot.edit_message_text(chat_id=call.message.chat.id,
                               message_id=call.message.message_id,
                               text="Введите IP-адрес:")
-        bot.register_next_step_handler(call.message, handle_ip) 
+        bot.register_next_step_handler(call.message, handle_ip)
     elif call.data == 'phone':
-        bot.edit_message_text(chat_id=call.message.chat.id, 
+        bot.edit_message_text(chat_id=call.message.chat.id,
                               message_id=call.message.message_id,
                               text="Введите номер телефона:")
         bot.register_next_step_handler(call.message, handle_phone)
 
+
 # Обработка сообщений
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
-    # В главном меню не обрабатываем сообщения
-    if message.text.startswith('https://') or message.text.startswith('http://'):
-        pass
-    elif message.text.startswith('+'):
-        pass
+    if check_user_in_data(message.from_user.id):
+        # В главном меню не обрабатываем сообщения
+        if message.text.startswith('https://') or message.text.startswith('http://'):
+            pass
+        elif message.text.startswith('+'):
+            pass
+        else:
+            bot.reply_to(message, "Некорректный ввод. Используйте кнопки.")
     else:
-        bot.reply_to(message, "Некорректный ввод. Используйте кнопки.")
+        invoice = crypto_client.createInvoice("USDT", "1", params={"description": "Покупка использования бота."})
+        result = invoice.get('result', {})
+        markup = types.InlineKeyboardMarkup(row_width=1)
+        button_1 = types.InlineKeyboardButton("💰Купить", url=result['pay_url'])
+        button_2 = types.InlineKeyboardButton("💵 Я оплатил", callback_data=f"confirm_{result['invoice_id']}")
+        markup.add(button_1, button_2)
+        bot.send_message(message.chat.id, "⚠️ Приобретите пожалуйста подписку чтобы использовать бота.",
+                         reply_markup=markup)
+
 
 # Обработка IP-адреса
 def handle_ip(message):
@@ -206,11 +281,13 @@ Currency:      {ip_api_data.get('currency', 'N/A')}
             if output_format == 'json':
                 with open('ip_info.json', 'w') as f:
                     json.dump(data, f)
-                bot.send_document(message.chat.id, open('ip_info.json', 'rb'), caption="Информация сохранена в файл ip_info.json.")
+                bot.send_document(message.chat.id, open('ip_info.json', 'rb'),
+                                  caption="Информация сохранена в файл ip_info.json.")
             elif output_format == 'txt':
                 with open('ip_info.txt', 'w') as f:
                     f.write(info)
-                bot.send_document(message.chat.id, open('ip_info.txt', 'rb'), caption="Информация сохранена в файл ip_info.txt.")
+                bot.send_document(message.chat.id, open('ip_info.txt', 'rb'),
+                                  caption="Информация сохранена в файл ip_info.txt.")
             else:
                 bot.reply_to(message, info)
         else:
@@ -221,7 +298,8 @@ Currency:      {ip_api_data.get('currency', 'N/A')}
         bot.reply_to(message, f"Ошибка: {e}")
 
     except Exception as e:
-        bot.reply_to(message, f"Произошла ошибка: {e}") 
+        bot.reply_to(message, f"Произошла ошибка: {e}")
+
 
 # Обработка номера телефона
 def handle_phone(message):
@@ -258,11 +336,13 @@ def handle_phone(message):
                 if output_format == 'json':
                     with open('phone_info.json', 'w') as f:
                         json.dump(data, f)
-                    bot.send_document(message.chat.id, open('phone_info.json', 'rb'), caption="Информация сохранена в файл phone_info.json.")
+                    bot.send_document(message.chat.id, open('phone_info.json', 'rb'),
+                                      caption="Информация сохранена в файл phone_info.json.")
                 elif output_format == 'txt':
                     with open('phone_info.txt', 'w') as f:
                         f.write(info)
-                    bot.send_document(message.chat.id, open('phone_info.txt', 'rb'), caption="Информация сохранена в файл phone_info.txt.")
+                    bot.send_document(message.chat.id, open('phone_info.txt', 'rb'),
+                                      caption="Информация сохранена в файл phone_info.txt.")
                 else:
                     bot.reply_to(message, info)
             else:
@@ -275,6 +355,7 @@ def handle_phone(message):
         bot.reply_to(message, f"Ошибка при запросе к API: {e}")
     except Exception as e:
         bot.reply_to(message, f"Произошла ошибка: {e}")
+
 
 # Запускаем бота
 if __name__ == '__main__':
