@@ -1,5 +1,4 @@
 import time
-
 import requests
 import telebot
 from telebot import types
@@ -9,19 +8,22 @@ import socket
 import json
 import os
 from crypto_pay_sync import cryptopay
+from fake_useragent import UserAgent
+from time import sleep
+from random import randint
 
-crypto_client = cryptopay.Crypto("235743:AA84QeqOlCzUf6mpxbYwiuHtFOfOkN716j2", testnet=False)
 BOT_TOKEN = '7149009411:AAEUtU2eq1oiVl4DBEbUjEr5RFQOg0oB6KE'
 API_KEY = 'bdf74038f14a42e8a2a38ec23a05842e'
 
-bot = telebot.TeleBot(BOT_TOKEN)
+crypto_client = cryptopay.Crypto("235743:AA84QeqOlCzUf6mpxbYwiuHtFOfOkN716j2", testnet=False)
+bot = telebot.TeleBot(TOKEN)
+bot_secondary = telebot.TeleBot(BOT_TOKEN)
+
+ua = UserAgent()
 
 output_format = 'usual'
-
 users_data = {}
-
 group_id = -1002166461586
-
 
 def check_subscription(chat_id, user_id):
     try:
@@ -31,14 +33,12 @@ def check_subscription(chat_id, user_id):
         print(f"Error checking subscription: {e}")
         return False
 
-
 def read_users_data():
     try:
         with open('users_data.json', 'r') as file:
             return json.load(file)
     except FileNotFoundError:
         return {}
-
 
 def write_user_data(user_id):
     users = read_users_data()
@@ -47,11 +47,22 @@ def write_user_data(user_id):
         with open('users_data.json', 'w') as file:
             json.dump(users, file)
 
-
 def check_user_in_data(user_id):
     users = read_users_data()
     return str(user_id) in users
 
+def main_menu(chat_id):
+    markup = types.InlineKeyboardMarkup()
+    item_ip = types.InlineKeyboardButton("💻 Айпи", callback_data='ip')
+    item_phone = types.InlineKeyboardButton("📱 Номер", callback_data='phone')
+    item_settings = types.InlineKeyboardButton("⚙️ Настройки", callback_data='settings')
+    item_spoof = types.InlineKeyboardButton("🕵️‍♂️ Спуфинг User-Agent", callback_data='spoof')
+    markup.add(item_ip, item_phone, item_settings, item_spoof)
+    bot.send_message(chat_id, "Выберите действие:", reply_markup=markup)
+
+# Функция для отправки сообщений
+def send_message(chat_id, text, reply_markup=None):
+    bot.send_message(chat_id, text, reply_markup=reply_markup)
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
@@ -76,7 +87,8 @@ def send_welcome(message):
         item_ip = types.InlineKeyboardButton("💻 Айпи", callback_data='ip')
         item_phone = types.InlineKeyboardButton("📱 Номер", callback_data='phone')
         item_settings = types.InlineKeyboardButton("⚙️ Настройки", callback_data='settings')
-        markup.add(item_ip, item_phone, item_settings)
+        item_spoof = types.InlineKeyboardButton("🕵️‍♂️ Спуфинг User-Agent", callback_data='spoof')
+        markup.add(item_ip, item_phone, item_settings, item_spoof)
 
         bot.send_message(message.chat.id,
                          f"👋 Здравствуй! Ты в боте от @fightlor. \n\n"
@@ -91,7 +103,6 @@ def send_welcome(message):
         markup.add(button_1, button_2)
         bot.send_message(message.chat.id, "⚠️ Приобретите пожалуйста подписку чтобы использовать бота.", reply_markup=markup)
 
-
 @bot.callback_query_handler(func=lambda call: call.data.startswith("confirm_"))
 def confirm_pay(call):
     invoice_id = call.data.split("_")[1]
@@ -105,7 +116,6 @@ def confirm_pay(call):
     else:
         bot.send_message(call.message.chat.id, "❌")
         bot.send_message(call.message.chat.id, "Оплата не прошла, попробуйте еще раз!")
-
 
 # Меню настроек
 @bot.callback_query_handler(func=lambda call: call.data == 'settings')
@@ -122,7 +132,6 @@ def handle_settings(call):
                           reply_markup=markup)
     # Обработчик настроек
 
-
 @bot.callback_query_handler(func=lambda call: call.data in ['json', 'txt', 'usual'])
 def handle_output_format(call):
     global output_format
@@ -131,15 +140,14 @@ def handle_output_format(call):
     # Возвращаем в главное меню
     send_welcome(call.message)
 
-
 @bot.message_handler(commands=['online'])
 def handle_online(message):
     online_count = len(users_data)
     bot.send_message(message.chat.id, f"Сейчас онлайн {online_count} человек.")
 
-
 @bot.callback_query_handler(func=lambda call: True)
 def handle_callback_query(call):
+    chat_id = call.message.chat.id
     if call.data == 'ip':
         bot.edit_message_text(chat_id=call.message.chat.id,
                               message_id=call.message.message_id,
@@ -150,29 +158,27 @@ def handle_callback_query(call):
                               message_id=call.message.message_id,
                               text="Введите номер телефона:")
         bot.register_next_step_handler(call.message, handle_phone)
-
-
-# Обработка сообщений
-@bot.message_handler(func=lambda message: True)
-def handle_message(message):
-    if check_user_in_data(message.from_user.id):
-        # В главном меню не обрабатываем сообщения
-        if message.text.startswith('https://') or message.text.startswith('http://'):
-            pass
-        elif message.text.startswith('+'):
-            pass
-        else:
-            bot.reply_to(message, "Некорректный ввод. Используйте кнопки.")
+    elif call.data == 'spoof':
+        send_message(chat_id, "Введите URL (логера для спуфинга например grabify):")
+        bot.register_next_step_handler(call.message, handle_spoof_url)
     else:
-        invoice = crypto_client.createInvoice("USDT", "1", params={"description": "Покупка использования бота."})
-        result = invoice.get('result', {})
-        markup = types.InlineKeyboardMarkup(row_width=1)
-        button_1 = types.InlineKeyboardButton("💰Купить", url=result['pay_url'])
-        button_2 = types.InlineKeyboardButton("💵 Я оплатил", callback_data=f"confirm_{result['invoice_id']}")
-        markup.add(button_1, button_2)
-        bot.send_message(message.chat.id, "⚠️ Приобретите пожалуйста подписку чтобы использовать бота.",
-                         reply_markup=markup)
+        send_message(chat_id, "Обработка других кнопок не реализована.")
 
+def handle_spoof_url(message):
+    chat_id = message.chat.id
+    url_to_fetch = message.text
+    for _ in range(3):  # Делаем 3 запроса
+        try:
+            headers = {'User-Agent': ua.random}
+            response = requests.get(url_to_fetch, headers=headers)
+            send_message(chat_id, f"Спуфинг User-Agent: {headers['User-Agent']}\nСтатус-код ответа: {response.status_code}")
+            sleep(randint(1, 3))  # Пауза между запросами
+        except requests.RequestException as e:
+            send_message(chat_id, f"Произошла ошибка: {e}")
+            break  # Прерываем цикл при возникновении ошибки
+    
+    # Возвращаемся к главному меню после выполнения запросов
+    main_menu(chat_id)
 
 # Обработка IP-адреса
 def handle_ip(message):
@@ -300,7 +306,6 @@ Currency:      {ip_api_data.get('currency', 'N/A')}
     except Exception as e:
         bot.reply_to(message, f"Произошла ошибка: {e}")
 
-
 # Обработка номера телефона
 def handle_phone(message):
     phone_number = message.text
@@ -355,7 +360,6 @@ def handle_phone(message):
         bot.reply_to(message, f"Ошибка при запросе к API: {e}")
     except Exception as e:
         bot.reply_to(message, f"Произошла ошибка: {e}")
-
 
 # Запускаем бота
 if __name__ == '__main__':
