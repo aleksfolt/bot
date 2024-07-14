@@ -16,8 +16,7 @@ BOT_TOKEN = '7149009411:AAEUtU2eq1oiVl4DBEbUjEr5RFQOg0oB6KE'
 API_KEY = 'bdf74038f14a42e8a2a38ec23a05842e'
 
 crypto_client = cryptopay.Crypto("235743:AA84QeqOlCzUf6mpxbYwiuHtFOfOkN716j2", testnet=False)
-bot = telebot.TeleBot(TOKEN)
-bot_secondary = telebot.TeleBot(BOT_TOKEN)
+bot = telebot.TeleBot(BOT_TOKEN)
 
 ua = UserAgent()
 
