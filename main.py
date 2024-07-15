@@ -12,7 +12,7 @@ from fake_useragent import UserAgent
 from time import sleep
 from random import randint
 
-BOT_TOKEN = '7149009411:AAEUtU2eq1oiVl4DBEbUjEr5RFQOg0oB6KE'
+BOT_TOKEN = '7149009411:AAEUtU2eq1oiVl4DBEbUjEr5RFQOg0B6KE'
 API_KEY = 'bdf74038f14a42e8a2a38ec23a05842e'
 
 crypto_client = cryptopay.Crypto("235743:AA84QeqOlCzUf6mpxbYwiuHtFOfOkN716j2", testnet=False)
@@ -203,15 +203,17 @@ def handle_spoof_count(message, url_to_fetch):
         return
 
     spoofer_states[user_id] = True
+    status_message = bot.send_message(chat_id, f"Отправлено 0/{count} запросов.")
     for i in range(count):
         try:
             headers = {'User-Agent': ua.random}
             response = requests.get(url_to_fetch, headers=headers)
-            send_message(chat_id,
-                         f"Запрос {i + 1}/{count}: User-Agent: {headers['User-Agent']}\nСтатус-код ответа: {response.status_code}")
+            bot.edit_message_text(chat_id=chat_id,
+                                  message_id=status_message.message_id,
+                                  text=f"Отправлено {i + 1}/{count} запросов.")
             sleep(randint(1, 3))
         except requests.RequestException as e:
-            send_message(chat_id, f"Произошла ошибка: {e}")
+            bot.send_message(chat_id, f"Произошла ошибка: {e}")
             break
 
     spoofer_states[user_id] = False
