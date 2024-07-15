@@ -12,7 +12,7 @@ from fake_useragent import UserAgent
 from time import sleep
 from random import randint
 
-BOT_TOKEN = '7149009411:AAEUtU2eq1oiVl4DBEbUjEr5RFQOg0B6KE'
+BOT_TOKEN = '7149009411:AAEUtU2eq1oiVl4DBEbUjEr5RFQOg0oB6KE'
 API_KEY = 'bdf74038f14a42e8a2a38ec23a05842e'
 
 crypto_client = cryptopay.Crypto("235743:AA84QeqOlCzUf6mpxbYwiuHtFOfOkN716j2", testnet=False)
