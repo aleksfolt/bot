@@ -20,9 +20,11 @@ bot = telebot.TeleBot(BOT_TOKEN)
 
 ua = UserAgent()
 
-output_format = 'usual'
+output_formats = {}
 users_data = {}
+spoofer_states = {}
 group_id = -1002166461586
+
 
 def check_subscription(chat_id, user_id):
     try:
@@ -32,12 +34,14 @@ def check_subscription(chat_id, user_id):
         print(f"Error checking subscription: {e}")
         return False
 
+
 def read_users_data():
     try:
         with open('users_data.json', 'r') as file:
             return json.load(file)
     except FileNotFoundError:
         return {}
+
 
 def write_user_data(user_id):
     users = read_users_data()
@@ -46,9 +50,11 @@ def write_user_data(user_id):
         with open('users_data.json', 'w') as file:
             json.dump(users, file)
 
+
 def check_user_in_data(user_id):
     users = read_users_data()
     return str(user_id) in users
+
 
 def main_menu(chat_id):
     markup = types.InlineKeyboardMarkup()
@@ -59,9 +65,11 @@ def main_menu(chat_id):
     markup.add(item_ip, item_phone, item_settings, item_spoof)
     bot.send_message(chat_id, "Выберите действие:", reply_markup=markup)
 
+
 # Функция для отправки сообщений
 def send_message(chat_id, text, reply_markup=None):
     bot.send_message(chat_id, text, reply_markup=reply_markup)
+
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
@@ -70,7 +78,8 @@ def send_welcome(message):
         markup = types.InlineKeyboardMarkup()
         button_1 = types.InlineKeyboardButton("📢 Подписаться", url="https://t.me/FightSearch")
         markup.add(button_1)
-        bot.send_message(message.chat.id, "⚠️ Пожалуйста подпишитесь на канал для использования бота.", reply_markup=markup)
+        bot.send_message(message.chat.id, "⚠️ Пожалуйста подпишитесь на канал для использования бота.",
+                         reply_markup=markup)
         return
     if check_user_in_data(message.from_user.id):
         if message.chat.id not in users_data:
@@ -99,7 +108,9 @@ def send_welcome(message):
         button_1 = types.InlineKeyboardButton("💰Купить", url=result['pay_url'])
         button_2 = types.InlineKeyboardButton("💵 Я оплатил", callback_data=f"confirm_{result['invoice_id']}")
         markup.add(button_1, button_2)
-        bot.send_message(message.chat.id, "⚠️ Приобретите пожалуйста подписку чтобы использовать бота.", reply_markup=markup)
+        bot.send_message(message.chat.id, "⚠️ Приобретите пожалуйста подписку чтобы использовать бота.",
+                         reply_markup=markup)
+
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("confirm_"))
 def confirm_pay(call):
@@ -114,6 +125,7 @@ def confirm_pay(call):
     else:
         bot.send_message(call.message.chat.id, "❌")
         bot.send_message(call.message.chat.id, "Оплата не прошла, попробуйте еще раз!")
+
 
 # Меню настроек
 @bot.callback_query_handler(func=lambda call: call.data == 'settings')
@@ -130,21 +142,26 @@ def handle_settings(call):
                           reply_markup=markup)
     # Обработчик настроек
 
+
 @bot.callback_query_handler(func=lambda call: call.data in ['json', 'txt', 'usual'])
 def handle_output_format(call):
-    global output_format
-    output_format = call.data
+    global output_formats
+    user_id = call.from_user.id
+    output_formats[user_id] = call.data
 
     bot.send_message(call.message.chat.id, "Формат вывода изменен.")
+
 
 @bot.message_handler(commands=['online'])
 def handle_online(message):
     online_count = len(users_data)
     bot.send_message(message.chat.id, f"Сейчас онлайн {online_count} человек.")
 
+
 @bot.callback_query_handler(func=lambda call: True)
 def handle_callback_query(call):
     chat_id = call.message.chat.id
+    user_id = call.from_user.id
     if call.data == 'ip':
         bot.edit_message_text(chat_id=call.message.chat.id,
                               message_id=call.message.message_id,
@@ -156,29 +173,53 @@ def handle_callback_query(call):
                               text="Введите номер телефона:")
         bot.register_next_step_handler(call.message, handle_phone)
     elif call.data == 'spoof':
-        send_message(chat_id, "Введите URL (логера для спуфинга например grabify):")
-        bot.register_next_step_handler(call.message, handle_spoof_url)
+        if spoofer_states.get(user_id, False):
+            bot.send_message(chat_id, "⚠️ У вас уже запущен процесс спуфинга. Дождитесь его завершения.")
+        else:
+            send_message(chat_id, "Введите URL (логера для спуфинга например grabify):")
+            bot.register_next_step_handler(call.message, handle_spoof_url)
     else:
         send_message(chat_id, "Обработка других кнопок не реализована.")
 
+
 def handle_spoof_url(message):
     chat_id = message.chat.id
+    user_id = message.from_user.id
     url_to_fetch = message.text
-    for _ in range(3):  # Делаем 3 запроса
+    send_message(chat_id, "Введите количество запросов (до 15):")
+    bot.register_next_step_handler(message, handle_spoof_count, url_to_fetch)
+
+
+def handle_spoof_count(message, url_to_fetch):
+    chat_id = message.chat.id
+    user_id = message.from_user.id
+    try:
+        count = int(message.text)
+        if count < 1 or count > 15:
+            raise ValueError("Количество запросов должно быть от 1 до 15.")
+    except ValueError as e:
+        send_message(chat_id, f"Ошибка: {e}. Введите количество запросов заново (до 15):")
+        bot.register_next_step_handler(message, handle_spoof_count, url_to_fetch)
+        return
+
+    spoofer_states[user_id] = True
+    for i in range(count):
         try:
             headers = {'User-Agent': ua.random}
             response = requests.get(url_to_fetch, headers=headers)
-            send_message(chat_id, f"Спуфинг User-Agent: {headers['User-Agent']}\nСтатус-код ответа: {response.status_code}")
-            sleep(randint(1, 3))  # Пауза между запросами
+            send_message(chat_id,
+                         f"Запрос {i + 1}/{count}: User-Agent: {headers['User-Agent']}\nСтатус-код ответа: {response.status_code}")
+            sleep(randint(1, 3))
         except requests.RequestException as e:
             send_message(chat_id, f"Произошла ошибка: {e}")
-            break  # Прерываем цикл при возникновении ошибки
-    
-    # Возвращаемся к главному меню после выполнения запросов
+            break
+
+    spoofer_states[user_id] = False
     main_menu(chat_id)
 
-# Обработка IP-адреса
+
 def handle_ip(message):
+    user_id = message.from_user.id
     ip = message.text
     try:
         # Проверка, является ли IP-адрес действительным
@@ -281,12 +322,13 @@ Timezone:      {ip_api_data.get('timezone', 'N/A')}
 Currency:      {ip_api_data.get('currency', 'N/A')}
             """
 
-            if output_format == 'json':
+            user_format = output_formats.get(user_id, 'usual')
+            if user_format == 'json':
                 with open('ip_info.json', 'w') as f:
                     json.dump(data, f)
                 bot.send_document(message.chat.id, open('ip_info.json', 'rb'),
                                   caption="Информация сохранена в файл ip_info.json.")
-            elif output_format == 'txt':
+            elif user_format == 'txt':
                 with open('ip_info.txt', 'w') as f:
                     f.write(info)
                 bot.send_document(message.chat.id, open('ip_info.txt', 'rb'),
@@ -303,8 +345,10 @@ Currency:      {ip_api_data.get('currency', 'N/A')}
     except Exception as e:
         bot.reply_to(message, f"Произошла ошибка: {e}")
 
+
 # Обработка номера телефона
 def handle_phone(message):
+    user_id = message.from_user.id
     phone_number = message.text
     try:
         parsed_number = phonenumbers.parse(phone_number)
@@ -335,12 +379,13 @@ def handle_phone(message):
 Город: {city}
                 """
 
-                if output_format == 'json':
+                user_format = output_formats.get(user_id, 'usual')
+                if user_format == 'json':
                     with open('phone_info.json', 'w') as f:
                         json.dump(data, f)
                     bot.send_document(message.chat.id, open('phone_info.json', 'rb'),
                                       caption="Информация сохранена в файл phone_info.json.")
-                elif output_format == 'txt':
+                elif user_format == 'txt':
                     with open('phone_info.txt', 'w') as f:
                         f.write(info)
                     bot.send_document(message.chat.id, open('phone_info.txt', 'rb'),
@@ -357,6 +402,7 @@ def handle_phone(message):
         bot.reply_to(message, f"Ошибка при запросе к API: {e}")
     except Exception as e:
         bot.reply_to(message, f"Произошла ошибка: {e}")
+
 
 # Запускаем бота
 if __name__ == '__main__':
