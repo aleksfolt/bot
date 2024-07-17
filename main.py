@@ -120,7 +120,7 @@ def handle_logger(call):
     link_value = user.username if user.username else user.id
     link = f"https://anonizm.top/log.php?link={link_value}"
     markup = telebot.types.InlineKeyboardMarkup()
-    markup.add(telebot.types.InlineKeyboardButton(text="Перейти к логам", url=link))
+    markup.add(telebot.types.InlineKeyboardButton(text="Перейти к логам", url="https://t.me/+hFKlR0jfvgU0NWUy"))
     bot.send_message(call.message.chat.id, f"Вот ваша логгер ссылка: <a href=\"{link}\">{link}</a> (Ищите логи с вашим username или user id в сообщении).\n\nСсылка на группу куда будут приходить логи: 👇", parse_mode="HTML", reply_markup=markup)
 
 
