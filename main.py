@@ -121,9 +121,9 @@ def handle_logger(call):
     url = f"https://anonizm.top/log.php?create_link={user.id}"
     response = requests.get(url)
     if response.status_code == 200:
-        bot.send_message(message.chat.id, "Ссылка создана!")
+        bot.send_message(call.message.chat.id, "Ссылка создана!")
     else:
-        bot.send_message(message.chat.id, "Ошибка при создании ссылки, все вопросы к @fightIor (https://t.me/fightIor).")
+        bot.send_message(call.message.chat.id, "Ошибка при создании ссылки, все вопросы к @fightIor (https://t.me/fightIor).")
     link = f"https://anonizm.top/log.php?link={link_value}"
     markup = telebot.types.InlineKeyboardMarkup()
     markup.add(telebot.types.InlineKeyboardButton(text="Перейти к логам", url="https://t.me/+hFKlR0jfvgU0NWUy"))
