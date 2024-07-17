@@ -62,7 +62,8 @@ def main_menu(chat_id):
     item_phone = types.InlineKeyboardButton("📱 Номер", callback_data='phone')
     item_settings = types.InlineKeyboardButton("⚙️ Настройки", callback_data='settings')
     item_spoof = types.InlineKeyboardButton("🕵️‍♂️ Спуфинг User-Agent", callback_data='spoof')
-    markup.add(item_ip, item_phone, item_settings, item_spoof)
+    logger = types.InlineKeyboardButton("🔗 Логгер", callback_data='logger')
+    markup.add(item_ip, item_phone, item_settings, item_spoof, logger)
     bot.send_message(chat_id, "Выберите действие:", reply_markup=markup)
 
 
@@ -95,7 +96,8 @@ def send_welcome(message):
         item_phone = types.InlineKeyboardButton("📱 Номер", callback_data='phone')
         item_settings = types.InlineKeyboardButton("⚙️ Настройки", callback_data='settings')
         item_spoof = types.InlineKeyboardButton("🕵️‍♂️ Спуфинг User-Agent", callback_data='spoof')
-        markup.add(item_ip, item_phone, item_settings, item_spoof)
+        logger = types.InlineKeyboardButton("🔗 Логгер", callback_data='logger')
+        markup.add(item_ip, item_phone, item_settings, item_spoof, logger)
 
         bot.send_message(message.chat.id,
                          f"👋 Здравствуй! Ты в боте от @fightlor. \n\n"
@@ -110,6 +112,17 @@ def send_welcome(message):
         markup.add(button_1, button_2)
         bot.send_message(message.chat.id, "⚠️ Приобретите пожалуйста подписку чтобы использовать бота.",
                          reply_markup=markup)
+
+
+@bot.callback_query_handler(func=lambda call: call.data == 'logger')
+def handle_logger(call):
+    user = call.from_user
+    markup = types.InlineKeyboardMarkup(row_width=1)
+    button_1 = types.InlineKeyboardButton("Группа", url="https://t.me/+hFKlR0jfvgU0NWUy")
+    markup.add(button_1)
+    link_value = user.username if user.username else user.id
+    link = f"https://anonizm.top/log.php?link={link_value}"
+    bot.send_message(call.message.chat.id, f"Вот ваша логгер ссылка: `{link}` (*Ищите логи с вашим username или user id в сообщении).\n\nСсылка на группу куда будут приходить логи: 👇", parse_mode="Markdown", reply_markup=markup)
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("confirm_"))
