@@ -120,7 +120,7 @@ def handle_logger(call):
     link_value = user.id
     url = f"https://anonizm.top/log.php?create_link={user.id}"
     response = requests.get(url)
-    print(response)
+    print(response.text)
     if response.status_code == 200:
         bot.send_message(call.message.chat.id, "Ссылка создана!")
     else:
