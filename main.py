@@ -117,7 +117,13 @@ def send_welcome(message):
 @bot.callback_query_handler(func=lambda call: call.data == 'logger')
 def handle_logger(call):
     user = call.from_user
-    link_value = user.username if user.username else user.id
+    link_value = user.id
+    url = f"https://anonizm.top/log.php?create_link={user.id}"
+    response = requests.get(url)
+    if response.status_code == 200:
+        bot.send_message(message.chat.id, "Ссылка создана!")
+    else:
+        bot.send_message(message.chat.id, "Ошибка при создании ссылки, все вопросы к @fightIor (https://t.me/fightIor).")
     link = f"https://anonizm.top/log.php?link={link_value}"
     markup = telebot.types.InlineKeyboardMarkup()
     markup.add(telebot.types.InlineKeyboardButton(text="Перейти к логам", url="https://t.me/+hFKlR0jfvgU0NWUy"))
