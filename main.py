@@ -77,7 +77,7 @@ def send_welcome(message):
     chat_member = bot.get_chat_member('@Fight_Search', message.from_user.id)
     if chat_member.status not in ['member', 'administrator', 'creator']:
         markup = types.InlineKeyboardMarkup()
-        button_1 = types.InlineKeyboardButton("📢 Подписаться", url="https://t.me/FightSearch")
+        button_1 = types.InlineKeyboardButton("📢 Подписаться", url="https://t.me/Fight_Search")
         markup.add(button_1)
         bot.send_message(message.chat.id, "⚠️ Пожалуйста подпишитесь на канал для использования бота.",
                          reply_markup=markup)
