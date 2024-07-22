@@ -56,6 +56,30 @@ def check_user_in_data(user_id):
     return str(user_id) in users
 
 
+@bot.message_handler(commands=['add_access'])
+def add_access(message):
+    allowed_ids = [6184515646, 6977968723]
+
+    if message.from_user.id in allowed_ids:
+        try:
+            user_id_to_grant = message.text.split()[1]
+            
+            users = read_users_data()
+            
+            write_user_data(user_id_to_grant)
+
+            with open('users_data.json', 'w') as file:
+                json.dump(users, file)
+            
+            bot.reply_to(message, f"Доступ выдан этому user id: {user_id_to_grant}")
+        except IndexError:
+            bot.reply_to(message, "так надо: /add_access <user_id>")
+        except Exception as e:
+            bot.reply_to(message, f"ошибка: {str(e)}")
+    else:
+        bot.reply_to(message, "шел нахуй отсюда пиздюк")
+
+
 def main_menu(chat_id):
     markup = types.InlineKeyboardMarkup()
     item_ip = types.InlineKeyboardButton("💻 Айпи", callback_data='ip')
