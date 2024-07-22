@@ -74,7 +74,7 @@ def send_message(chat_id, text, reply_markup=None):
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    chat_member = bot.get_chat_member('@FightSearch', message.from_user.id)
+    chat_member = bot.get_chat_member('@Fight_Search', message.from_user.id)
     if chat_member.status not in ['member', 'administrator', 'creator']:
         markup = types.InlineKeyboardMarkup()
         button_1 = types.InlineKeyboardButton("📢 Подписаться", url="https://t.me/FightSearch")
